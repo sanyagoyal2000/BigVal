@@ -1,578 +1,553 @@
+
+  
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "bigval.h"
 
-static int min(int a, int b) {
-    if(a < b)
-        return a;
-    else
-        return b;
+#define MAX 1001
+
+// Library "bigval" - Integer of arbitray length
+// bigval is a nonnegative integer of arbitrary length (not more than 1000 decimal digits).
+// The integer is stored as a null terminated string of ASCII characters.
+// String of decimal digits ('0' thru '9') are stored in big endian style.
+// That is, the most significant digit is at the head of the string.
+// Eg: Integer 25 is stored in str as '2' at str[0], '5' at str[1], and null char at str[2].
+
+static char* set_bigval_zero() {
+	char* result = (char*)malloc(2*sizeof(char));
+	strcpy(result, "0");
+	return result;
 }
 
-static char* reverse(const char* bigval1) {
-    char *rev = malloc(1001 * sizeof(char));
-    int size = strlen(bigval1) - 1;
-    int counter = 0;
-    while(size >= 0) {
-        rev[counter++] = bigval1[size];
-        size--;
-    }
-    rev[counter] = '\0';
-    return rev;
+static char* set_bigval_one() {
+	char* result = (char*)malloc(2*sizeof(char));
+	strcpy(result, "1");
+	return result;
 }
 
-char* bigval_add(const char* bigval1, const char* bigval2) {
-    char *temp = (char*) malloc(1002 * sizeof(char));
-    int check = bigval_compare(bigval1, bigval2);
-    const char* bigger;
-    const char* smaller;
-    if(check == 1) {
-        bigger = bigval1;
-        smaller = bigval2;
-    }
-    else {
-        bigger = bigval2;
-        smaller = bigval1;
-    }
-    int size1 = strlen(bigger);
-    int size2 = strlen(smaller);
-    temp[size1] = '\0';
-    int calc = 0;
-    int carry = 0;
-    for(int i = size1 - 1, j = size2 - 1; i >= 0; i--)
-    {
-        calc = (bigger[i] - '0') + carry;
-        if(j >= 0)
-            calc = calc + (smaller[j] - '0');
-        if(calc > 9) {
-            carry = calc / 10;
-            calc = calc % 10;
-        }
-        else {
-            carry = 0;
-        }
-        temp[i] = calc + '0';
-        j--;
-    }
-    if(carry)
-    {
-        for(int i = size1 + 1; i > 0; i--)
-            temp[i] = temp[i-1];
-        temp[0] = carry + '0';
-    }
-    return temp;
+static char* bigval_copy(const char *bigval) {
+	int result_size = strlen(bigval)+1;
+	char *result = (char*)malloc(result_size * sizeof(char));
+	strcpy(result, bigval);
+	return result;
 }
 
-int bigval_compare(const char* bigval1, const char* bigval2) {
-    int size1 = strlen(bigval1);
-    int size2 = strlen(bigval2);
-    //printf("%d %d\n", size1, size2);
-    if(size1 > size2)
-        return 1;
-    if(size2 > size1)
-        return -1;
-    int index1 = 0, index2 = 0;
-    while(index1 <= size1 && index2 <= size2) {
-        //printf("%c %c\n", bigval1[index1], bigval2[index2]);
-        if((bigval1[index1] - '0') > (bigval2[index2] - '0'))
-            return 1;
-        if((bigval1[index1] - '0') < (bigval2[index2] - '0'))
-            return -1;
-        index1++;
-        index2++;
-    }
+static int get_value(const char *bigval, int len, int index) {
+	if (index < len)
+        return bigval[len - index - 1] - '0'; 
     return 0;
 }
 
-char* bigval_diff(const char* bigval1, const char* bigval2) {
-    char *temp = (char*) malloc(1001 * sizeof(char));
-    const char *bigger;
-    const char *smaller;
-    int check = bigval_compare(bigval1, bigval2);
-    if(check == 0)
-    {
-        strcpy(temp, "0");
-        return temp;
-    }
-    if(check == 1) {
-        bigger = bigval1;
-        smaller = bigval2;
-    }
-    else {
-        bigger = bigval2;
-        smaller = bigval1;
-    }
-    int size1 = strlen(bigger);
-    int size2 = strlen(smaller);
-    temp[size1] = '\0';
-    int diff = 0;
-    int borrow = 0;
-    int z = 0;
-    size1--;
-    size2--;
-    int j = size2;
-    for(int i = size1; i >= 0; i--)
-    {
-        diff = (bigger[i] - '0') - borrow;
-        if(j >= 0)
-            diff = diff - (smaller[j] - '0');
-        if(diff < 0) {
-            diff = diff + 10;
-            borrow = 1;
-        }
-        else {
-            borrow = 0;
-        }
-        temp[i] = diff + '0';
-        if(temp[i] == '0')
-            z = z + 1;
-        else
-            z = 0;
-        j--;
-    }
-
-    for(int i = 0; i <= size1 - z + 1; i++)
-        temp[i] = temp[i + z];
-    return temp;
-}
-
-char* bigval_multiply(const char* bigval1, const char* bigval2) {
-    //printf("bigval %s %s\n", bigval1, bigval2);
-    char *temp = malloc(1001 * sizeof(char));
-    char *ret = malloc(1001 * sizeof(char));
-    strcpy(ret, "0");
-    strcpy(temp, "0");
-    if(bigval_compare(bigval1, "0") == 0 || bigval_compare(bigval2, "0") == 0) {
-            return temp;
-    }
-    char *bigger = malloc(1001 * sizeof(char));
-    char *smaller = malloc(1001 * sizeof(char));
-    if(bigval_compare(bigval1, bigval2) == 1) {
-        strcpy(bigger, bigval1);
-        strcpy(smaller, bigval2);
-    }
-    else {
-        strcpy(bigger, bigval2);
-        strcpy(smaller, bigval1);
-    }
-    int size1 = strlen(bigger);
-    int size2 = strlen(smaller);
-    size1--;
-    size2--;
-    int no_of_zeros = 0;
-    //printf("%s %s\n", bigger, smaller);
-    while(size2 >= 0) {
-         int i = 0;
-         int calc = 0;
-         int carry = 0;
-         for(int j = 0; j < no_of_zeros; j++) {
-            temp[i++] = '0';
-         }
-         for(int j = size1; j >= 0; j--) {
-            calc = ((bigger[j] - '0') * (smaller[size2] - '0')) + carry;
-            //printf("%d\n", calc);
-            if(calc > 9) {
-                carry = calc / 10;
-                calc = calc % 10;
-            }
-            else {
-                carry = 0;
-            }
-            //printf("%d %d\n", calc, carry);
-            temp[i++] = calc + '0';
-         }
-         //printf("!!%d\n", carry);
-         while(carry > 0) {
-            temp[i++] = carry%10 + '0';
-            carry = carry/10;
-         }
-         temp[i] = '\0';
-         //printf("%s\n", temp);
-         char *x = reverse(temp);
-         char *y = temp;
-         temp = x;
-         free(y);
-         //printf("%s\n", temp);
-         char *x1 = bigval_add(temp, ret);
-         char *y1 = ret;
-         ret = x1;
-         free(y1);
-         no_of_zeros++;
-         size2--;
-         //printf("%s!!\n", ret);
-    }
-    //printf("%s\n", ret);
-    //printf("%s temp\n", temp);
-    free(bigger);
-    free(smaller);
-    free(temp);
-    return ret;
-}
-
-char* bigval_mod(const char* bigval1, const char* bigval2)
-{
-    char *ans = (char*) malloc(1001 * sizeof(char));
-    if(bigval_compare(bigval1, bigval2) == -1) {
-        strcpy(ans, bigval1);
-        return ans;
-    }
-    char *bigval2_extended = (char*) malloc(1001 * sizeof(char));
-    strcpy(bigval2_extended, bigval2);
-    int size2 = strlen(bigval2);
-    int zeros = strlen(bigval1) - size2;
-    for(int i = 0; i < zeros; i++)
-        bigval2_extended[size2 + i] = '0';
-    bigval2_extended[size2 + zeros] = '\0';
-    //char *multiplier = (char*) malloc(3 * sizeof(char));
-    char *m = (char*) malloc(3 * sizeof(char));
-    while(bigval_compare(ans, bigval2) != -1)
-    {
-        strcpy(m, "1");
-        char *temp_product = bigval_multiply(bigval2_extended, m);
-        while(strcmp(m, "10") && bigval_compare(ans, temp_product) != -1)
-        {
-            free(temp_product);
-            char *new_multiplier = bigval_add(m, "1");
-            char *temp = m;
-            m = new_multiplier;
-            free(temp);
-            temp_product = bigval_multiply(bigval2_extended, m);
-        }
-        free(temp_product);
-        char *biggest_positive_multiplier = bigval_diff(m, "1");
-        char *closest_product = bigval_multiply(bigval2_extended, biggest_positive_multiplier);
-        free(biggest_positive_multiplier);
-        char* temp_ans = bigval_diff(ans, closest_product);
-        free(closest_product);
-        char* temp = ans;
-        ans = temp_ans;
-        free(temp);
-        bigval2_extended[strlen(bigval2_extended)-1] = '\0';
-    }
-    free(m);
-    free(bigval2_extended);
-    return ans;
-}
-
-char* bigval_pow(const char* bigval1, unsigned int n) {
-    char *temp = malloc(1001 * sizeof(char));
-    strcpy(temp, "0");
-    if(bigval_compare(bigval1, "0") == 0) {
-        return temp;
-    }
-    strcpy(temp, "1");
-    if(n == 0) {
-        return temp;
-    }
-    if(bigval_compare(bigval1, "1") == 0) {
-        return temp;
-    }
-    if(n == 1) {
-        strcpy(temp, bigval1);
-        return temp;
-    }
-    char *temp1 = malloc(1001 * sizeof(char));
-    strcpy(temp1, bigval1);
-    while(n > 0) {
-    //printf("%s\n", temp);
-       if(n & 1) {
-            char *x = bigval_multiply(temp, temp1);
-            char *y = temp;
-            temp = x;
-            free(y);
-       }
-       n = n >> 1;
-       if(strlen(temp1) <= 500) {
-           char *x = bigval_multiply(temp1, temp1);
-           char *y = temp1;
-           temp1 = x;
-           free(y);
-       }
-    }
-    free(temp1);
-    return temp;
-}
-
-char* bigval_gcd(const char* bigval1, const char* bigval2) {
-    char *temp = malloc(1001 * sizeof(char));
-    char *num1 = malloc(1001 * sizeof(char));
-    char *num2 = malloc(1001 * sizeof(char));
-    strcpy(num1, bigval1);
-    strcpy(num2, bigval2);
-    while(1) {
-        //printf("%s %s\n", num1, num2);
-        if(bigval_compare(num1, "0") == 0) {
-            strcpy(temp, num2);
-            free(num1);
-            free(num2);
-            return temp;
-        }
-        if(bigval_compare(num2, "0") == 0) {
-            strcpy(temp, num1);
-            free(num1);
-            free(num2);
-            return temp;
-        }
-        if(bigval_compare(num2, num1) == 0) {
-            strcpy(temp, num1);
-            free(num1);
-            free(num2);
-            return temp;
-        }
-        if(bigval_compare(num1, num2) == 1) {
-            char *tempx = bigval_mod(num1, num2);
-            char *temp2 = num1;
-            num1 = tempx;
-            free(temp2);
-        }
-        else {
-            strcpy(temp, num1);
-            char *tempx = bigval_mod(num2, num1);
-            char *temp2 = num2;
-            num1 = tempx;
-            free(temp2);
-            strcpy(num2, temp);
-        }
-    }
-}
-
-char* bigval_fibonacci(unsigned int n) {
-    char *temp = malloc(1001 * sizeof(char));
-    strcpy(temp, "0");
-    if(n == 0) {
-        return temp;
-    }
-    strcpy(temp, "1");
-    if(n == 1) {
-        return temp;
-    }
-    if(n == 2) {
-        return temp;
-    }
-    char **a = (char**) malloc((n + 1) * sizeof(char*));
-	for(int i = 0; i <= n; i++) {
-		a[i] = (char*) malloc(1001 * sizeof(char));
+static char* strip_leading_zeroes(char *nbigval, int size) {
+	if(size <= 1) {
+		if(size == 1) nbigval[0] = '\0';
+		return nbigval;
 	}
-    strcpy(a[0], "1");
-    strcpy(a[1], "1");
-    for(int i = 2; i <= n; i++) {
-        char *x = bigval_add(a[i - 2], a[i - 1]);
-        char *y = a[i];
-        a[i] = x;
-        free(y);
-    }
-    strcpy(temp, a[n-1]);
-    for(int i = 0; i <= n; i++)
-        free(a[i]);
-    free(a);
-    return temp;
-}
-
-char* bigval_factorial(unsigned int n) {
-    char *temp = malloc(1001 * sizeof(char));
-    strcpy(temp, "1");
-    if(n == 0)
-        return temp;
-    char *num = malloc(1001 * sizeof(char));
-    strcpy(num, "1");
-    for(int i = 2; i <= n; i++) {
-        char *temp1 = bigval_add(num, "1");
-        char *temp2 = num;
-        num = temp1;
-        free(temp2);
-        //printf("%s\n", num);
-        char *temp3 = bigval_multiply(temp, num);
-        char *temp4 = temp;
-        temp = temp3;
-        free(temp4);
-        //printf("%s\n", temp);
-        //printf("%s %s\n", temp, num);
-    }
-    return temp;
-}
-
-char* bigval_bincoeff(unsigned int n, unsigned int k) {
-    char *temp = malloc(1001 * sizeof(char));
-    strcpy(temp, "1");
-    if(n == 0 || k == 0 || (n == k))  {
-        return temp;
-    }
-    if(k > n/2) {
-        k = n - k;
-    }
-    char **arr = (char**) malloc((k + 1) * sizeof(char*));
-    for(int i = 0; i <= k; i++) {
-		arr[i] = (char*) malloc(1001 * sizeof(char));
-		strcpy(arr[i], "0");
+	char *result;
+	int f = 0;
+	while(f < size && nbigval[f++] == '0');
+	if(f == size) {
+		free(nbigval);
+		result = set_bigval_zero();
+		return result;
 	}
-	strcpy(arr[0], "1");
-	for(int i = 1; i <= n; i++) {
-        for(int j = min(i, k); j > 0; j--) {
-            char *x = bigval_add(arr[j], arr[j - 1]);
-            char *y = arr[j];
-            arr[j] = x;
-            free(y);
-        }
+	else {
+		if(f == 0) {
+			return nbigval;
+		}
+		f--;
+		result = (char*)malloc((size-f)*sizeof(char));
+		memcpy(result, nbigval+f, size-f);
+		free(nbigval);
+		return result;
 	}
-	char *ans = arr[k];
-	for(int i = 0; i < k; i++)
-        free(arr[i]);
-    return ans;
 }
 
-int bigval_max(char **arr, int n) {
-    int index = 0;
-    for(int i = 1; i < n; i++) {
-        //printf("%s %s\n", arr[index], arr[i]);
-        if(bigval_compare(arr[index], arr[i]) == -1)
-            index = i;
-    }
-    return index;
-}
-
-int bigval_min(char **arr, int n) {
-    int index = 0;
-    for(int i = 1; i < n; i++) {
-        //printf("%s %s\n", arr[index], arr[i]);
-        if(bigval_compare(arr[index], arr[i]) == 1)
-            index = i;
-    }
-    return index;
-}
-
-int bigval_search(char **arr, int n, const char* key) {
-    for(int i = 0; i < n; i++) {
-        if(bigval_compare(arr[i], key) == 0)
-            return i;
-    }
-    return -1;
-}
-
-int bigval_binsearch(char **arr, int n, const char* key) {
-    int start = 0;
-    int end = n - 1;
-    while(start <= end) {
-        int mid = (start + end)/2;
-        if(bigval_compare(arr[mid], key) == 0) {
-            return mid;
-        }
-        if(bigval_compare(arr[mid], key) == 1) {
-            end = mid - 1;
-        }
-        if(bigval_compare(arr[mid], key) == -1) {
-            start = mid + 1;
-        }
-    }
-    return -1;
+static char* bigval_by_two(const char *bigval) {
+	int len = strlen(bigval);
+	int result_size = len+1;
+	char *result = (char*)malloc(result_size * sizeof(char));
+	result[result_size-1] = '\0';
+	int d, quotient, remainder=0;
+	for(int i=len-1; i>=0; i--) {
+		d = get_value(bigval, len, i);
+		d = remainder*10 + d;
+		quotient = d/2;
+		if(d%2 == 1) {
+			remainder = 1;
+		} else {
+			remainder = 0;
+		}
+		result[result_size-i-2] = quotient + '0';
+	}
+	return strip_leading_zeroes(result, result_size);
 }
 
 static void merge(char **arr, int l, int m, int r) {
-    int n1 = m - l + 1;
-    int n2 = r - m;
-    //printf("lmr %d %d %d\n", l, m, r);
-    //printf("%d %d\n", n1, n2);
-    char **arr1 = (char**) malloc(n1 * sizeof(char*));
-	for(int i = 0; i < n1; i++) {
-		arr1[i] = (char*) malloc(1001 * sizeof(char));
+	int i, j, k;
+	int l1 = m-l+1;
+	int l2 = r-m;
+
+	char **arr_l = (char**)malloc(l1 * sizeof(char*));
+	char **arr_r = (char**)malloc(l2 * sizeof(char*));
+
+	for(i=0; i<l1; i++) {
+		arr_l[i] = arr[l+i];
 	}
-	char **arr2 = (char**) malloc(n2 * sizeof(char*));
-	for(int i = 0; i < n2; i++) {
-		arr2[i] = (char*) malloc(1001 * sizeof(char));
+	for(i=0; i<l2; i++) {
+		arr_r[i] = arr[m+1+i];
 	}
-	for (int i = 0; i < n1; i++) {
-        strcpy(arr1[i],arr[l + i]);
-        //printf("%s\n", arr1[i]);
+	i=0; j=0; k=l;
+	while(i<l1 && j<l2) {
+		if(bigval_compare(arr_l[i], arr_r[j]) <= 0) {
+			arr[k] = arr_l[i];
+			i++;
+		}
+		else {
+			arr[k] = arr_r[j];
+			j++;
+		}
+		k++;
 	}
-    for (int j = 0; j < n2; j++) {
-        strcpy(arr2[j],arr[m + 1+ j]);
-        //printf("%s\n", arr2[j]);
-    }
-    int i = 0, j = 0, k = l;
-    while (i < n1 && j < n2)
-    {
-        //printf("--%d %d\n", arr1[i], arr2[j]);
-        if (bigval_compare(arr1[i], arr2[j]) == -1)
-        {
-            strcpy(arr[k],arr1[i]);
-            i++;
-        }
-        else
-        {
-            strcpy(arr[k],arr2[j]);
-            j++;
-        }
-        k++;
-    }
-    while (i < n1)
-    {
-        strcpy(arr[k],arr1[i]);
-        i++;
-        k++;
-    }
-    while (j < n2)
-    {
-        strcpy(arr[k], arr2[j]);
-        j++;
-        k++;
-    }
-    for(int i = 0; i < n1; i++)
-        free(arr1[i]);
-    for(int i = 0; i < n2; i++)
-        free(arr2[i]);
-    free(arr1);
-    free(arr2);
+	while(i < l1) {
+		arr[k] = arr_l[i];
+		i++;
+		k++;
+	}
+	while(j < l2) {
+		arr[k] = arr_r[j];
+		j++;
+		k++;
+	}
+	free(arr_l);
+	free(arr_r);
 }
 
 static void merge_sort(char **arr, int l, int r) {
-    if(l < r) {
-        int mid = (l + r)/2;
-        //printf("1. %d %d\n", l, mid);
-        merge_sort(arr, l, mid);
-        //printf("2. %d %d\n", mid + 1, r);
-        merge_sort(arr, mid + 1, r);
-        merge(arr, l, mid, r);
-    }
+	if(l < r) {
+		int m = l+(r-l)/2; 
+		merge_sort(arr, l, m);
+		merge_sort(arr, m+1, r);
+		merge(arr, l, m, r);
+	}
 }
 
+// Returns the sum of two bigvals.
+char* bigval_add(const char* bigval1, const char* bigval2) {
+	int l1, l2, width, i, sum, carry=0, d1, d2;
+	l1 = strlen(bigval1);
+	l2 = strlen(bigval2);
+	width = l1 > l2 ? l1 : l2;
+	char *result = (char *)malloc((width+2)*sizeof(char));
+	result[width+1] = '\0';
+	for(i=0; i<width; i++) {
+		d1 = get_value(bigval1, l1, i);
+		d2 = get_value(bigval2, l2, i);
+		sum = d1 + d2 + carry;
+		carry = sum / 10;
+		sum = sum % 10;
+		result[width-i] = sum+'0';
+	}
+	result[0] = carry+'0';
+	return strip_leading_zeroes(result, width+2);
+}
+
+// Returns the comparison value of two bigvals.
+// Returns 0 when both are equal.
+// Returns +1 when bigval1 is greater, and -1 when bigval2 is greater.
+int bigval_compare(const char* bigval1, const char* bigval2) {
+	int l1 = strlen(bigval1);
+	int l2 = strlen(bigval2);
+	if(l1 > l2) {
+		return 1;
+	}
+	else if(l2 > l1) {
+		return -1;
+	}
+	else {
+		for(int i=0; i<l1; i++) {
+			if(bigval1[i] > bigval2[i]) {
+				return 1;
+			}
+			else if(bigval1[i] < bigval2[i]) {
+				return -1;
+			}
+		}
+		return 0;
+	}
+}
+
+// Returns the difference (obviously, nonnegative) of two bigvals.
+char* bigval_diff(const char* bigval1, const char* bigval2) {
+	if(bigval_compare(bigval1, bigval2) < 0) {
+		const char *temp = bigval2;
+		bigval2 = bigval1;
+		bigval1 = temp;
+	}
+	int l1, l2, width, i, diff, borrow=0, d1, d2;
+	l1 = strlen(bigval1);
+	l2 = strlen(bigval2);
+	width = l1 > l2 ? l1 : l2;
+	char *result = (char *)malloc((width+1)*sizeof(char));
+	result[width] = '\0';
+	for(i=0; i<width; i++) {
+		d1 = get_value(bigval1, l1, i);
+		d2 = get_value(bigval2, l2, i);
+		diff = d1 - d2 - borrow;
+		borrow = 0;
+		if(diff < 0) {
+			borrow = 1;
+			diff += 10;
+		}
+		result[width-i-1] = diff+'0';
+	}
+	return strip_leading_zeroes(result, width+1);
+}
+
+// Returns the product of two bigvals.
+char* bigval_multiply(const char* bigval1, const char* bigval2) {
+	int l1, l2, i, j, d1, d2, prod, carry=0;
+	l1 = strlen(bigval1);
+	l2 = strlen(bigval2);
+	int result_size = l1+l2+1;
+	char *result = (char*)malloc(result_size * sizeof(char));
+	result[result_size-1] = '\0';
+	memset(result, '0', result_size-1);
+	for(i=0; i<l1; i++) {
+		d1 = get_value(bigval1, l1, i);
+		if(d1 != 0) { 
+			for(j=0; j<l2; j++) {
+				d2 = get_value(bigval2, l2, j);
+				prod = d1 * d2 + carry + result[result_size-i-j-2] - '0';
+				carry = prod / 10;
+				prod = prod % 10;
+				result[result_size-i-j-2] = prod + '0';
+			}
+			if(carry) {
+				result[result_size-i-j-2] = carry + '0';
+			}
+		}
+		carry = 0;
+	}
+	return strip_leading_zeroes(result, result_size);
+}
+
+// Returns bigval1 mod bigval2
+// The mod value should be in the range [0, bigval2 - 1].
+// bigval2 > 1
+// Implement a O(log bigval1) time taking algorithm.
+// O(bigval1 / bigval2) time taking algorithm may exceed time limit.
+// O(bigval1 / bigval2) algorithm may repeatedly subtract bigval2 from bigval1.
+// That will take bigval1/bigval2 iterations.
+// You need to design a O(log bigval1) time taking algorithm.
+// Generate your own testcases at https://www.omnicalculator.com/math/modulo
+char* bigval_mod_bs(const char* bigval1, const char* bigval2) {
+	const char *dividend = bigval1, *divisor = bigval2;
+	int cmp;
+	char *result;
+	cmp = bigval_compare(dividend, divisor);
+	if(cmp == 0) {
+		result = set_bigval_zero();
+		return result;
+	}
+	if(cmp == -1) {
+		result = bigval_copy(dividend);
+		return result;
+	}
+	char *low, *high;	
+	low = set_bigval_one();
+	high = bigval_copy(dividend);
+	// Trying to find the quotient(mid) that will give the remainder(mod) which is >=0 and <divisor
+	while(bigval_compare(low, high) <= 0) {
+		char *temp = bigval_add(low, high);
+		char *mid = bigval_by_two(temp);
+		free(temp);
+		char *mids_dividend = bigval_multiply(divisor, mid);
+		if(bigval_compare(mids_dividend, dividend) == 1) { // remainder < 0
+			char *prev_high = high;
+			high = bigval_diff(mid, "1");
+			free(prev_high);
+			free(mid);
+			free(mids_dividend);
+			continue;
+		}
+		char *mids_remainder = bigval_diff(dividend, mids_dividend);
+		cmp = bigval_compare(mids_remainder, divisor);
+		if(cmp == 1) { // remainder > divisor
+			char *prev_low = low;
+			low = bigval_add(mid, "1");
+			free(prev_low);
+		}
+		else { // 0 <= remainder <= divisor
+			if(cmp == 0) { // remainder == divisor
+				result = set_bigval_zero();
+			}
+			result = mids_remainder;
+			free(mid);
+			free(mids_dividend);
+			free(low);
+			free(high);
+			return result;
+		}
+		free(mid);
+		free(mids_dividend);
+		free(mids_remainder);
+	}
+	free(low);
+	return high;
+}
+char* bigval_mod(const char* bigval1, const char* bigval2) {
+	char *dividend = bigval_copy(bigval1);
+	if(bigval_compare(dividend, bigval2) == -1) {
+		return dividend;
+	}
+	int l1 = strlen(bigval1);
+	int l2 = strlen(bigval2);
+	char *modded_divisor = (char*)calloc((l1+1), sizeof(char));
+	strcpy(modded_divisor, bigval2);
+	memset(modded_divisor+l2, '0', l1-l2);
+	int i = l1;
+	while(i >= l2) {
+		while(bigval_compare(dividend, modded_divisor) >= 0) {
+			char *temp = dividend;
+			dividend = bigval_diff(dividend, modded_divisor);
+			free(temp);
+		}
+		modded_divisor[--i] = '\0';
+	}
+	free(modded_divisor);
+	return dividend;
+}
+
+// Returns bigval1 ^ bigval2.
+// Let 0 ^ n = 0, where n is an bigval.
+// Implement a O(log n) bigval multiplications algorithm.
+// 2^3000 has less than 1000 decimal digits. 3000 bigval multiplications may exceed time limit.
+char* bigval_pow(const char* bigval1, unsigned int n) {
+	char *result;
+	if(bigval1[0] == '0') {
+		result = set_bigval_zero();
+		return result;
+	}
+	result = set_bigval_one();
+	if(n == 0 || (bigval1[0] == '1' && bigval1[1] == '\0')) {
+		return result;
+	}
+	char *temp_bigval = bigval_copy(bigval1);
+	while(n > 0) {
+		if(n & 1) {
+			char *temp1 = result;
+			result = bigval_multiply(result, temp_bigval);
+			free(temp1);
+		}
+		n = n >> 1;
+		char *temp2 = temp_bigval;
+		temp_bigval = bigval_multiply(temp_bigval, temp_bigval);
+		free(temp2);
+	}
+	free(temp_bigval);
+	return result;
+}
+
+// Returns Greatest Common Devisor of bigval1 and bigval2.
+// Let GCD be "0" if both bigval1 and bigval2 are "0" even though it is undefined, mathematically.
+// Use Euclid's theorem to not exceed the time limit.
+char* bigval_gcd(const char* bigval1, const char* bigval2) {
+	char *a, *b;
+	if(bigval1[0] == '0' && bigval2[0] == '0') {
+		a = set_bigval_zero();
+		return a;
+	}
+	a = bigval_copy(bigval1);
+	b = bigval_copy(bigval2);
+	while(bigval_compare(b, "0") != 0) {
+		char *r = bigval_mod(a, b);
+		char *temp = a;
+		a = b;
+		free(temp);
+		b = r;
+	}
+	free(b);
+	return a;
+}
+
+// Returns nth fibonacci number.
+// bigval_fibonacci(0) = bigval "0".
+// bigval_fibonacci(1) = bigval "1".
+char* bigval_fibonacci(unsigned int n) {
+	char *a, *b, *c;
+	a = set_bigval_zero();
+	if(n == 0) {
+		return a;
+	}
+	b = set_bigval_one();
+	for(int i=2; i <= n; i++) {
+		c = bigval_add(a, b);
+		char* temp = a;
+		a = b;
+		free(temp);
+		b = c;
+	}
+	free(a);
+	return b;
+}
+
+// Returns the factorial of n.
+char* bigval_factorial(unsigned int n) {
+	char *result;
+	if(n >= 10000) {
+		result = set_bigval_zero();
+		return result;
+	}
+	result = set_bigval_one();
+	char *bigval_i = (char*)malloc((4+1) * sizeof(char));
+	for(unsigned int i=2; i<=n; i++) {
+		sprintf(bigval_i, "%u", i);
+		char *temp = result;
+		result = bigval_multiply(result, bigval_i);
+		free(temp);
+	}
+	free(bigval_i);
+	return result;
+}
+
+// Returns the Binomial Coefficient C(n,k).
+// 0 <= k <= n
+// C(n,k) < 10^1000 because the returning value is expected to be less than 10^1000.
+// Use the Pascal's identity C(n,k) = C(n-1,k) + C(n-1,k-1)
+// Make sure the intermediate bigval values do not cross C(n,k).
+// Use Dynamic Programming. Use extra space of not more than O(k) number of bigvals. Do not allocate the whole O(nk) DP table.
+// Don't let C(1000,900) take more time than C(1000,500). Time limit may exceed otherwise.
+char* bigval_bincoeff(unsigned int n, unsigned int k) {
+	if(k>n) {
+		char* result = set_bigval_zero();
+		return result;
+	}
+	if(k>n/2) {
+        k=n-k;
+    }
+	char **table = (char**)malloc((k+1) * sizeof(char*));
+	table[0] = set_bigval_one();
+	for(int i=1; i < k+1; i++) {
+		table[i] = set_bigval_zero();
+	}
+	for(int i=1; i <= n; i++) {
+		for(int j = (i<k ? i : k); j > 0; j--) {
+			char *temp = table[j];
+			table[j] = bigval_add(table[j], table[j-1]);
+			free(temp);
+		}
+	}
+	char *result = bigval_copy(table[k]);
+	for(int i=0; i < k+1; i++) {
+		free(table[i]);
+	}
+	free(table);
+	return result;
+}
+
+// Returns the offset of the largest bigval in the array.
+// Return the smallest offset if there are multiple occurrences.
+// 1 <= n <= 1000
+int bigval_max(char **arr, int n) {
+	int max_index = 0, i = 1;
+	while(i < n) {
+		if(bigval_compare(arr[i], arr[max_index]) == 1) {
+			max_index = i;
+		}
+		i++;
+	}
+	return max_index;
+}
+
+// Returns the offset of the smallest bigval in the array.
+// Return the smallest offset if there are multiple occurrences.
+// 1 <= n <= 1000
+int bigval_min(char **arr, int n) {
+	int min_index = 0, i = 1;
+	while(i < n) {
+		if(bigval_compare(arr[i], arr[min_index]) == -1) {
+			min_index = i;
+		}
+		i++;
+	}
+	return min_index;
+}
+
+// Returns the offset of the first occurrence of the key bigval in the array.
+// Returns -1 if the key is not found.
+// 1 <= n <= 1000
+int bigval_search(char **arr, int n, const char* key) {
+	for(int i=0; i<n; i++) {
+		if(bigval_compare(arr[i], key) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+// Returns the offset of the first occurrence of the key bigval in the SORTED array.
+// Returns -1 if the key is not found.
+// The array is sorted in nondecreasing order.
+// 1 <= n <= 1000
+// The implementation should be a O(log n) algorithm.
+int bigval_binsearch(char **arr, int n, const char* key) {
+	int low=0, high = n-1, mid, cmp, result=-1;
+	while(low <= high) {
+		mid = low + ((high - low) / 2); 
+		cmp = bigval_compare(key, arr[mid]);
+		if(cmp == 0) {
+			result = mid;
+			high = mid-1;
+		}
+		else if(cmp == 1) {
+			low = mid + 1;
+		}
+		else if(cmp == -1) {
+			high = mid - 1;
+		}
+	}
+	return result;
+}
+
+// Sorts the array of n bigvals.
+// 1 <= n <= 1000
+// The implementation should be a O(n log n) algorithm.
 void bigval_sort(char **arr, int n) {
-    merge_sort(arr, 0, n - 1);
+	merge_sort(arr, 0, n-1);
 }
 
+// Coin-Row Problem - Dynamic Programming Solution
+// There is a row of n coins whose values are some positive integers C[0..n-1].
+// The goal is to pick up the maximum amount of money subject to the constraint that
+// no two coins adjacent in the initial row can be picked up.
+// 1 <= n <= 1000
+// The implementation should be O(n) time and O(1) extra space even though the DP table may be of O(n) size.
+// Eg: Coins = [10, 2, 4, 6, 3, 9, 5] returns 25
 char* coin_row_problem(char **arr, int n) {
-    char *value1 = malloc(1001 * sizeof(char));
-    strcpy(value1, "0");
-    if(n == 0)
-        return value1;
-    strcpy(value1, arr[0]);
-    if(n == 1)
-        return value1;
-    char *value2 = malloc(1001 * sizeof(char));
-    if(bigval_compare(arr[0], arr[1]) == -1) {
-        strcpy(value2, arr[1]);
-    }
-    else {
-        strcpy(value2, arr[0]);
-    }
-    if(n == 2)
-        return value2;
-    char *max_val = malloc(1001 * sizeof(char));
-    //printf("value1, value2, temp, max_val\n");
-    for(int i = 2; i < n; i++) {
-        char *temp = malloc(1001 * sizeof(char));
-        temp = bigval_add(arr[i], value1);
-        if(bigval_compare(temp, value2) == 1) {
-            //printf("%s %s greater\n", temp, value2);
-            strcpy(max_val, temp);
-        }
-        else {
-            strcpy(max_val, value2);
-        }
-        //printf("%s %s %s %s\n", value1, value2, temp, max_val);
-        strcpy(value1, value2);
-        strcpy(value2, max_val);
-    }
-    free(value1);
-    free(value2);
-    return max_val;
+	char *t1, *t2, *t3;
+	t1 = (char*)malloc(MAX * sizeof(char));
+	strcpy(t1, "0");
+	if(n <= 0) {
+		return t1;
+	}
+	t2 = (char*)malloc(MAX * sizeof(char));
+	t3 = (char*)malloc(MAX * sizeof(char));
+	strcpy(t2, arr[0]);
+	for(int i=1; i<n; i++) {
+		char *temp = bigval_add(arr[i], t1);
+		strcpy(t3, temp);
+		free(temp);
+		strcpy(t1, t2);
+		if(bigval_compare(t3, t2) == 1) {
+			strcpy(t2, t3);
+		}
+	}
+	char *result = bigval_copy(t2);
+	free(t1);
+	free(t2);
+	free(t3);
+	return result;
 }
