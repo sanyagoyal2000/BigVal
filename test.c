@@ -53,7 +53,7 @@ int main(int argc, char const *argv[]) {
 	} else {
 		if(0 == strcmp(result1, "543214197641976419764197641976")) {
 			printf("Test bigval_diff PASSED\n");
-               printf("Result:%s,result1");
+               printf("543214197641976419764197641976");
                printf("\n");
 		} else {
 			printf("Test bigval_diff FAILED.\nYour answer: %s\nExpected answer: %s\n", result1, "543214197641976419764197641976");
